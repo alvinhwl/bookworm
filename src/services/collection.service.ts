@@ -22,7 +22,12 @@ import { BookwormError } from './errors'
 
 export const collectionService = {
   async getAll(): Promise<Collection[]> {
-    return collectionRepository.getAll()
+    try {
+      return await collectionRepository.getAll()
+    } catch (error) {
+      console.warn('[bookworm] Collections unavailable — showing books only.', error)
+      return []
+    }
   },
 
   async getById(id: string): Promise<Collection | null> {

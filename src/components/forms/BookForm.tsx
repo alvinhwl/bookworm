@@ -58,6 +58,7 @@ export function BookForm({
     initialValues?.tags?.map((t) => t.name) ?? [],
   )
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const isEdit = Boolean(initialValues?.id)
@@ -83,6 +84,7 @@ export function BookForm({
     if (!validate()) return
 
     setSubmitting(true)
+    setSubmitError(null)
     try {
       await onSubmit(
         {
@@ -105,6 +107,10 @@ export function BookForm({
         },
         tags,
       )
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to save. Please try again.'
+      setSubmitError(message)
     } finally {
       setSubmitting(false)
     }
@@ -205,6 +211,12 @@ export function BookForm({
             : undefined
         }
       />
+
+      {submitError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {submitError}
+        </p>
+      )}
 
       <div className="flex gap-3 pt-2">
         <Button type="submit" disabled={!isValid || submitting}>

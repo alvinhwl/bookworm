@@ -19,7 +19,7 @@ import { CollectionListItem } from '@/components/collections/CollectionListItem'
 export function LibraryPage() {
   const navigate = useNavigate()
   const { showToast } = useToast()
-  const { books, allBooks, stats, loading, refresh } = useFilteredBooks()
+  const { books, allBooks, stats, loading, error, refresh } = useFilteredBooks()
   const { collections, loading: collectionsLoading, refresh: refreshCollections } =
     useCollections()
   const {
@@ -100,6 +100,21 @@ export function LibraryPage() {
       <div className="flex justify-center py-20">
         <Spinner />
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <>
+        <PageHeader title="My Library" subtitle="Could not load library" />
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-stone-800">We couldn&apos;t load your books.</p>
+          <p className="mt-1 text-sm text-stone-600">{error.message}</p>
+          <Button variant="secondary" className="mt-4" onClick={() => void refresh()}>
+            Try again
+          </Button>
+        </div>
+      </>
     )
   }
 
