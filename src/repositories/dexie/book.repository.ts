@@ -19,6 +19,23 @@ export const dexieBookRepository: BookRepository = {
     await db.books.update(id, changes)
   },
 
+  async getByCollectionId(collectionId: string): Promise<Book[]> {
+    return db.books.where('collection_id').equals(collectionId).toArray()
+  },
+
+  async unlinkFromCollection(collectionId: string): Promise<void> {
+    const books = await this.getByCollectionId(collectionId)
+    await Promise.all(
+      books.map((b) =>
+        db.books.update(b.id, { collection_id: null, volume_number: null }),
+      ),
+    )
+  },
+
+  async deleteByCollectionId(collectionId: string): Promise<void> {
+    await db.books.where('collection_id').equals(collectionId).delete()
+  },
+
   async delete(id: string): Promise<void> {
     await db.books.delete(id)
   },

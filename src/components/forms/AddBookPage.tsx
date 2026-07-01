@@ -7,8 +7,8 @@ import type { CreateBookInput } from '@/types'
 export function AddBookPage() {
   const navigate = useNavigate()
 
-  async function handleSubmit(data: CreateBookInput) {
-    const book = await bookService.create(data)
+  async function handleSubmit(data: CreateBookInput, tagNames: string[]) {
+    const book = await bookService.create(data, tagNames)
     navigate(`/books/${book.id}`)
   }
 

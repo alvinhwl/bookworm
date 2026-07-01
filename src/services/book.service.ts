@@ -14,6 +14,8 @@ import { getTotal } from '@/utils/progress'
 import { BookwormError } from './errors'
 import { authService } from './auth.service'
 import { coverService } from './cover.service'
+import { tagService } from './tag.service'
+import { collectionService } from './collection.service'
 
 export type StatusUpdateResult = {
   book: Book
@@ -22,15 +24,18 @@ export type StatusUpdateResult = {
 
 export const bookService = {
   async getAll(): Promise<Book[]> {
-    return bookRepository.getAll()
+    const books = await bookRepository.getAll()
+    return attachTags(books)
   },
 
   async getById(id: string): Promise<Book | null> {
     const book = await bookRepository.getById(id)
-    return book ?? null
+    if (!book) return null
+    book.tags = await tagService.getForBook(id)
+    return book
   },
 
-  async create(input: CreateBookInput): Promise<Book> {
+  async create(input: CreateBookInput, tagNames?: string[]): Promise<Book> {
     const now = nowISO()
     const id = generateId()
     const userId = await authService.getUserId()
@@ -49,6 +54,9 @@ export const bookService = {
       updated_at: now,
     }
     await bookRepository.create(book)
+    if (tagNames && tagNames.length > 0) {
+      book.tags = await tagService.setBookTags(book.id, tagNames)
+    }
     return book
   },
 
@@ -74,17 +82,35 @@ export const bookService = {
     return updated
   },
 
-  async delete(id: string): Promise<void> {
+  async updateTags(id: string, tagNames: string[]): Promise<Book> {
+    const book = await this.getById(id)
+    if (!book) throw new BookwormError('NOT_FOUND', 'Book not found')
+    book.tags = await tagService.setBookTags(id, tagNames)
+    return book
+  },
+
+  async delete(
+    id: string,
+    collectionAction?: 'delete_collection' | 'unlink',
+  ): Promise<void> {
     const existing = await bookRepository.getById(id)
     if (!existing) {
       throw new BookwormError('NOT_FOUND', 'Book not found')
     }
+
+    if (collectionAction && (await collectionService.isLastVolume(id))) {
+      await collectionService.deleteLastVolume(id, collectionAction)
+      return
+    }
+
     if (isSupabaseEnabled()) {
       await readingLogRepository.deleteByBookId(id)
+      await tagService.setBookTags(id, [])
       await bookRepository.delete(id)
     } else {
-      await db.transaction('rw', db.books, db.readingLog, async () => {
+      await db.transaction('rw', db.books, db.readingLog, db.book_tags, async () => {
         await readingLogRepository.deleteByBookId(id)
+        await tagService.setBookTags(id, [])
         await bookRepository.delete(id)
       })
     }
@@ -138,4 +164,16 @@ export const bookService = {
       return b.finished_at.startsWith(String(year))
     })
   },
+
+  async isLastInCollection(id: string): Promise<boolean> {
+    return collectionService.isLastVolume(id)
+  },
+}
+
+async function attachTags(books: Book[]): Promise<Book[]> {
+  const tagMap = await tagService.attachTagsToBooks(books)
+  return books.map((book) => ({
+    ...book,
+    tags: tagMap.get(book.id) ?? [],
+  }))
 }

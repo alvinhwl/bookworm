@@ -7,7 +7,7 @@ import { libraryService } from '@/services'
 
 export function useFilteredBooks() {
   const { books, loading, error, refresh } = useBooks()
-  const { search, status, format } = useLibraryFilters()
+  const { search, status, format, tags, view } = useLibraryFilters()
   const { settings } = useSettings()
   const debouncedSearch = useDebouncedValue(search, 250)
 
@@ -16,9 +16,11 @@ export function useFilteredBooks() {
       search: debouncedSearch,
       status,
       format,
+      tags,
+      standaloneOnly: view === 'books',
       sort: settings?.default_sort,
     })
-  }, [books, debouncedSearch, status, format, settings?.default_sort])
+  }, [books, debouncedSearch, status, format, tags, view, settings?.default_sort])
 
   const stats = useMemo(() => libraryService.getStats(books), [books])
 

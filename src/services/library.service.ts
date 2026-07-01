@@ -1,11 +1,13 @@
 import type { Book, BookFormat, ReadingStatus, SortOption } from '@/types'
-import { matchesSearch } from '@/utils/search'
+import { matchesSearch, matchesTags } from '@/utils/search'
 import { sortBooks } from '@/utils/sort'
 
 export interface LibraryQuery {
   search?: string
   status?: ReadingStatus | null
   format?: BookFormat | null
+  tags?: string[]
+  standaloneOnly?: boolean
   sort?: SortOption
 }
 
@@ -23,6 +25,14 @@ export const libraryService = {
 
     if (query.search) {
       result = result.filter((b) => matchesSearch(b, query.search!))
+    }
+
+    if (query.tags && query.tags.length > 0) {
+      result = result.filter((b) => matchesTags(b, query.tags!))
+    }
+
+    if (query.standaloneOnly) {
+      result = result.filter((b) => !b.collection_id)
     }
 
     if (query.sort) {

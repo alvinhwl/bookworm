@@ -42,6 +42,32 @@ export const supabaseBookRepository: BookRepository = {
     if (error) throw error
   },
 
+  async getByCollectionId(collectionId: string): Promise<Book[]> {
+    const { data, error } = await getSupabase()
+      .from('books')
+      .select('*')
+      .eq('collection_id', collectionId)
+      .order('volume_number', { ascending: true })
+    if (error) throw error
+    return (data as BookRow[]).map(fromBookRow)
+  },
+
+  async unlinkFromCollection(collectionId: string): Promise<void> {
+    const { error } = await getSupabase()
+      .from('books')
+      .update({ collection_id: null, volume_number: null })
+      .eq('collection_id', collectionId)
+    if (error) throw error
+  },
+
+  async deleteByCollectionId(collectionId: string): Promise<void> {
+    const { error } = await getSupabase()
+      .from('books')
+      .delete()
+      .eq('collection_id', collectionId)
+    if (error) throw error
+  },
+
   async delete(id: string): Promise<void> {
     const { error } = await getSupabase().from('books').delete().eq('id', id)
     if (error) throw error

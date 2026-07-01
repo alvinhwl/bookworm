@@ -18,6 +18,8 @@ import { ProgressSection } from './ProgressSection'
 import { ReadingLogList } from './ReadingLogList'
 import { NotesSection } from './NotesSection'
 import { DeleteBookDialog } from './DeleteBookDialog'
+import { LastBookDeleteDialog } from './LastBookDeleteDialog'
+import { Badge } from '@/components/ui/Badge'
 import { getTotal, percentComplete } from '@/utils/progress'
 
 export function BookDetailPage() {
@@ -27,6 +29,7 @@ export function BookDetailPage() {
   const { book, loading, refresh } = useBook(id)
   const { entries, refresh: refreshLogs } = useReadingLog(id)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [lastBookDeleteOpen, setLastBookDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [finishDialogOpen, setFinishDialogOpen] = useState(false)
   const [pendingStatus, setPendingStatus] = useState<ReadingStatus | null>(null)
@@ -80,6 +83,15 @@ export function BookDetailPage() {
     await handleRefresh()
   }
 
+  async function handleDeleteClick() {
+    if (!book) return
+    if (await bookService.isLastInCollection(book.id)) {
+      setLastBookDeleteOpen(true)
+    } else {
+      setDeleteOpen(true)
+    }
+  }
+
   async function handleDelete() {
     if (!book) return
     setDeleting(true)
@@ -90,6 +102,19 @@ export function BookDetailPage() {
     } finally {
       setDeleting(false)
       setDeleteOpen(false)
+    }
+  }
+
+  async function handleLastBookDelete(action: 'delete_collection' | 'unlink') {
+    if (!book) return
+    setDeleting(true)
+    try {
+      await bookService.delete(book.id, action)
+      showToast(action === 'unlink' ? 'Book kept · collection removed' : 'Book deleted', 'success')
+      navigate('/')
+    } finally {
+      setDeleting(false)
+      setLastBookDeleteOpen(false)
     }
   }
 
@@ -131,7 +156,7 @@ export function BookDetailPage() {
           <Button
             variant="danger"
             size="sm"
-            onClick={() => setDeleteOpen(true)}
+            onClick={handleDeleteClick}
           >
             <Trash2 className="h-4 w-4" />
             Delete
@@ -147,6 +172,25 @@ export function BookDetailPage() {
             {book.title}
           </h1>
           <p className="mt-1 text-lg text-stone-600">{book.author}</p>
+          {(book.tags ?? []).length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {book.tags!.map((tag) => (
+                <Badge key={tag.id} variant="muted">
+                  {tag.name}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {book.collection_id && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={() => navigate(`/collections/${book.collection_id}`)}
+            >
+              View collection
+            </Button>
+          )}
           <div className="mt-4 max-w-xs">
             <StatusSelector status={book.status} onChange={handleStatusChange} />
           </div>
@@ -170,6 +214,14 @@ export function BookDetailPage() {
         open={deleteOpen}
         onClose={() => setDeleteOpen(false)}
         onConfirm={handleDelete}
+        loading={deleting}
+      />
+
+      <LastBookDeleteDialog
+        open={lastBookDeleteOpen}
+        onClose={() => setLastBookDeleteOpen(false)}
+        onDeleteAll={() => handleLastBookDelete('delete_collection')}
+        onUnlink={() => handleLastBookDelete('unlink')}
         loading={deleting}
       />
 

@@ -6,11 +6,14 @@ export type ReadingStatus =
   | 'finished'
   | 'dnf'
 
+import type { Tag } from './tag'
+
 export interface Book {
   id: string
   user_id?: string
   collection_id?: string | null
   volume_number?: number | null
+  tags?: Tag[]
   title: string
   author: string
   format: BookFormat

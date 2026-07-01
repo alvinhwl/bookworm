@@ -36,10 +36,10 @@ export function AppShell() {
             <NavLink to="/" className={navLinkClass} end>
               Library
             </NavLink>
-            <NavLink to="/books/new" className={navLinkClass}>
+            <NavLink to="/add" className={navLinkClass}>
               <span className="flex items-center gap-1.5">
                 <Plus className="h-4 w-4" />
-                Add Book
+                Add
               </span>
             </NavLink>
             <NavLink to="/settings" className={navLinkClass}>

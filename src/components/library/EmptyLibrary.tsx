@@ -16,7 +16,7 @@ export function EmptyLibrary() {
       <p className="mt-2 max-w-sm text-stone-500">
         Start building your personal reading collection by adding your first book.
       </p>
-      <Button className="mt-6" onClick={() => navigate('/books/new')}>
+      <Button className="mt-6" onClick={() => navigate('/add')}>
         <Plus className="h-4 w-4" />
         Add your first book
       </Button>

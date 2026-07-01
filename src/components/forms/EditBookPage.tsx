@@ -12,9 +12,10 @@ export function EditBookPage() {
   const navigate = useNavigate()
   const { book, loading } = useBook(id)
 
-  async function handleSubmit(data: CreateBookInput) {
+  async function handleSubmit(data: CreateBookInput, tagNames: string[]) {
     if (!id) return
     await bookService.update(id, data)
+    await bookService.updateTags(id, tagNames)
     navigate(`/books/${id}`)
   }
 

@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Book, BookFormat, CreateBookInput, ReadingStatus } from '@/types'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { tagService } from '@/services'
+import { TagInput } from '@/components/tags/TagInput'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
@@ -18,7 +21,7 @@ const statusOptions = (
 
 interface BookFormProps {
   initialValues?: Partial<Book>
-  onSubmit: (data: CreateBookInput) => Promise<void>
+  onSubmit: (data: CreateBookInput, tagNames: string[]) => Promise<void>
   onCancel: () => void
   submitLabel: string
 }
@@ -51,11 +54,23 @@ export function BookForm({
     initialValues?.total_duration_minutes?.toString() ?? '',
   )
   const [notes, setNotes] = useState(initialValues?.notes ?? '')
+  const [tags, setTags] = useState<string[]>(
+    initialValues?.tags?.map((t) => t.name) ?? [],
+  )
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [touched, setTouched] = useState<Record<string, boolean>>({})
+  const isEdit = Boolean(initialValues?.id)
+  const debouncedTitle = useDebouncedValue(title, 500)
+  const debouncedAuthor = useDebouncedValue(author, 500)
 
   const isValid = title.trim() && author.trim()
+
+  useEffect(() => {
+    if (isEdit || tags.length > 0) return
+    if (!debouncedTitle.trim() || !debouncedAuthor.trim()) return
+    setTags(tagService.suggest({ title: debouncedTitle, author: debouncedAuthor, notes, format }))
+  }, [debouncedTitle, debouncedAuthor, notes, format, isEdit, tags.length])
 
   function validate(): boolean {
     const result = validateBookForm({ title, author })
@@ -69,24 +84,27 @@ export function BookForm({
 
     setSubmitting(true)
     try {
-      await onSubmit({
-        title: title.trim(),
-        author: author.trim(),
-        format,
-        status,
-        cover_url: coverUrl,
-        isbn: isbn.trim() || null,
-        published_year: publishedYear ? Number(publishedYear) : null,
-        total_pages:
-          format !== 'audiobook' && totalPages ? Number(totalPages) : null,
-        total_duration_minutes:
-          format === 'audiobook' && totalDuration
-            ? Number(totalDuration)
-            : null,
-        notes,
-        started_at: initialValues?.started_at ?? null,
-        finished_at: initialValues?.finished_at ?? null,
-      })
+      await onSubmit(
+        {
+          title: title.trim(),
+          author: author.trim(),
+          format,
+          status,
+          cover_url: coverUrl,
+          isbn: isbn.trim() || null,
+          published_year: publishedYear ? Number(publishedYear) : null,
+          total_pages:
+            format !== 'audiobook' && totalPages ? Number(totalPages) : null,
+          total_duration_minutes:
+            format === 'audiobook' && totalDuration
+              ? Number(totalDuration)
+              : null,
+          notes,
+          started_at: initialValues?.started_at ?? null,
+          finished_at: initialValues?.finished_at ?? null,
+        },
+        tags,
+      )
     } finally {
       setSubmitting(false)
     }
@@ -176,6 +194,16 @@ export function BookForm({
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Optional notes about this book"
+      />
+
+      <TagInput
+        tags={tags}
+        onChange={setTags}
+        onSuggest={
+          isEdit
+            ? () => setTags(tagService.suggest({ title, author, notes, format }))
+            : undefined
+        }
       />
 
       <div className="flex gap-3 pt-2">

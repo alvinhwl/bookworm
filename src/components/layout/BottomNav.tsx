@@ -14,7 +14,7 @@ export function BottomNav() {
           <BookOpen className="h-5 w-5" />
           Library
         </NavLink>
-        <NavLink to="/books/new" className={linkClass}>
+        <NavLink to="/add" className={linkClass}>
           <Plus className="h-5 w-5" />
           Add
         </NavLink>
