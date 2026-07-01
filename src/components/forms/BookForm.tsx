@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Book, BookFormat, CreateBookInput, ReadingStatus } from '@/types'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
-import { tagService } from '@/services'
+import { coverLookupService, tagService } from '@/services'
 import { TagInput } from '@/components/tags/TagInput'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
@@ -43,6 +43,9 @@ export function BookForm({
   const [coverUrl, setCoverUrl] = useState<string | null>(
     initialValues?.cover_url ?? null,
   )
+  const [coverLookingUp, setCoverLookingUp] = useState(false)
+  const [coverAutoFound, setCoverAutoFound] = useState(false)
+  const coverManualRef = useRef(Boolean(initialValues?.cover_url))
   const [isbn, setIsbn] = useState(initialValues?.isbn ?? '')
   const [publishedYear, setPublishedYear] = useState(
     initialValues?.published_year?.toString() ?? '',
@@ -64,6 +67,7 @@ export function BookForm({
   const isEdit = Boolean(initialValues?.id)
   const debouncedTitle = useDebouncedValue(title, 500)
   const debouncedAuthor = useDebouncedValue(author, 500)
+  const debouncedIsbn = useDebouncedValue(isbn, 500)
 
   const isValid = title.trim() && author.trim()
 
@@ -72,6 +76,52 @@ export function BookForm({
     if (!debouncedTitle.trim() || !debouncedAuthor.trim()) return
     setTags(tagService.suggest({ title: debouncedTitle, author: debouncedAuthor, notes, format }))
   }, [debouncedTitle, debouncedAuthor, notes, format, isEdit, tags.length])
+
+  useEffect(() => {
+    if (isEdit || coverManualRef.current) return
+    if (!debouncedTitle.trim() || !debouncedAuthor.trim()) return
+
+    let cancelled = false
+    setCoverLookingUp(true)
+
+    void coverLookupService
+      .lookup({
+        title: debouncedTitle,
+        author: debouncedAuthor,
+        isbn: debouncedIsbn,
+      })
+      .then((url) => {
+        if (cancelled || coverManualRef.current) return
+        setCoverUrl(url)
+        setCoverAutoFound(Boolean(url))
+      })
+      .finally(() => {
+        if (!cancelled) setCoverLookingUp(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedTitle, debouncedAuthor, debouncedIsbn, isEdit])
+
+  async function handleFindCover() {
+    if (!title.trim() || !author.trim()) return
+
+    coverManualRef.current = false
+    setCoverLookingUp(true)
+    try {
+      const url = await coverLookupService.lookup({ title, author, isbn })
+      setCoverUrl(url)
+      setCoverAutoFound(Boolean(url))
+    } finally {
+      setCoverLookingUp(false)
+    }
+  }
+
+  function handleCoverManualChange() {
+    coverManualRef.current = true
+    setCoverAutoFound(false)
+  }
 
   function validate(): boolean {
     const result = validateBookForm({ title, author })
@@ -157,7 +207,14 @@ export function BookForm({
         />
       </div>
 
-      <CoverInput value={coverUrl} onChange={setCoverUrl} />
+      <CoverInput
+        value={coverUrl}
+        onChange={setCoverUrl}
+        onManualChange={handleCoverManualChange}
+        lookingUp={coverLookingUp}
+        autoFound={coverAutoFound}
+        onLookup={handleFindCover}
+      />
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Input

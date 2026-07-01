@@ -1,24 +1,41 @@
 import { useRef } from 'react'
+import { ImagePlus, Loader2, Search } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { coverService } from '@/services'
-import { ImagePlus } from 'lucide-react'
 
 interface CoverInputProps {
   value: string | null
   onChange: (url: string | null) => void
+  onManualChange?: (url: string | null) => void
+  lookingUp?: boolean
+  autoFound?: boolean
+  onLookup?: () => void
   error?: string
 }
 
-export function CoverInput({ value, onChange, error }: CoverInputProps) {
+export function CoverInput({
+  value,
+  onChange,
+  onManualChange,
+  lookingUp = false,
+  autoFound = false,
+  onLookup,
+  error,
+}: CoverInputProps) {
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function handleUrlChange(next: string | null) {
+    onManualChange?.(next)
+    onChange(next)
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     try {
       const dataUrl = await coverService.fileToDataUrl(file)
-      onChange(dataUrl)
+      handleUrlChange(dataUrl)
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to upload cover')
     }
@@ -28,13 +45,14 @@ export function CoverInput({ value, onChange, error }: CoverInputProps) {
   return (
     <div className="space-y-3">
       <Input
-        label="Cover image URL"
+        label="Cover image"
         value={value ?? ''}
-        onChange={(e) => onChange(e.target.value || null)}
-        placeholder="https://example.com/cover.jpg"
+        onChange={(e) => handleUrlChange(e.target.value || null)}
+        placeholder="Found automatically, or paste a URL"
         error={error}
       />
-      <div className="flex items-center gap-3">
+
+      <div className="flex flex-wrap items-center gap-3">
         <input
           ref={fileRef}
           type="file"
@@ -51,6 +69,32 @@ export function CoverInput({ value, onChange, error }: CoverInputProps) {
           <ImagePlus className="h-4 w-4" />
           Upload image
         </Button>
+
+        {onLookup && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onLookup}
+            disabled={lookingUp}
+          >
+            {lookingUp ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4" />
+            )}
+            Find cover online
+          </Button>
+        )}
+
+        {lookingUp && (
+          <span className="text-sm text-stone-500">Looking up cover…</span>
+        )}
+
+        {!lookingUp && autoFound && value && (
+          <span className="text-sm text-emerald-700">Cover found online</span>
+        )}
+
         {value && (
           <img
             src={value}

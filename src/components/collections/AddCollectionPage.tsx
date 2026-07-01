@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { VolumeMode } from '@/types'
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -7,13 +7,19 @@ import { Select } from '@/components/ui/Select'
 import { Textarea } from '@/components/ui/Textarea'
 import { Button } from '@/components/ui/Button'
 import { CoverInput } from '@/components/forms/CoverInput'
-import { collectionService } from '@/services'
+import { useDebouncedValue } from '@/hooks/useDebouncedValue'
+import { collectionService, coverLookupService } from '@/services'
 export function AddCollectionPage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [author, setAuthor] = useState('')
   const [description, setDescription] = useState('')
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
+  const [coverLookingUp, setCoverLookingUp] = useState(false)
+  const [coverAutoFound, setCoverAutoFound] = useState(false)
+  const coverManualRef = useRef(false)
+  const debouncedName = useDebouncedValue(name, 500)
+  const debouncedAuthor = useDebouncedValue(author, 500)
   const [volumeMode, setVolumeMode] = useState<VolumeMode>('named')
   const [expectedCount, setExpectedCount] = useState('')
   const [namedTitles, setNamedTitles] = useState('')
@@ -22,6 +28,48 @@ export function AddCollectionPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const isValid = name.trim() && author.trim()
+
+  useEffect(() => {
+    if (coverManualRef.current) return
+    if (!debouncedName.trim() || !debouncedAuthor.trim()) return
+
+    let cancelled = false
+    setCoverLookingUp(true)
+
+    void coverLookupService
+      .lookup({ title: debouncedName, author: debouncedAuthor })
+      .then((url) => {
+        if (cancelled || coverManualRef.current) return
+        setCoverUrl(url)
+        setCoverAutoFound(Boolean(url))
+      })
+      .finally(() => {
+        if (!cancelled) setCoverLookingUp(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [debouncedName, debouncedAuthor])
+
+  async function handleFindCover() {
+    if (!name.trim() || !author.trim()) return
+
+    coverManualRef.current = false
+    setCoverLookingUp(true)
+    try {
+      const url = await coverLookupService.lookup({ title: name, author })
+      setCoverUrl(url)
+      setCoverAutoFound(Boolean(url))
+    } finally {
+      setCoverLookingUp(false)
+    }
+  }
+
+  function handleCoverManualChange() {
+    coverManualRef.current = true
+    setCoverAutoFound(false)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -84,7 +132,14 @@ export function AddCollectionPage() {
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optional"
           />
-          <CoverInput value={coverUrl} onChange={setCoverUrl} />
+          <CoverInput
+            value={coverUrl}
+            onChange={setCoverUrl}
+            onManualChange={handleCoverManualChange}
+            lookingUp={coverLookingUp}
+            autoFound={coverAutoFound}
+            onLookup={handleFindCover}
+          />
 
           <Select
             label="Volume style"
