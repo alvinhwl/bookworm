@@ -8,6 +8,9 @@ export type ReadingStatus =
 
 export interface Book {
   id: string
+  user_id?: string
+  collection_id?: string | null
+  volume_number?: number | null
   title: string
   author: string
   format: BookFormat

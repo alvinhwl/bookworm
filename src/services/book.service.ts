@@ -6,11 +6,14 @@ import type {
 } from '@/types'
 import { bookRepository, readingLogRepository } from '@/repositories'
 import { db } from '@/db'
+import { isSupabaseEnabled } from '@/lib/supabase'
 import { generateId } from '@/utils/id'
 import { nowISO } from '@/utils/dates'
 import { applyStatusTransition } from '@/utils/status'
 import { getTotal } from '@/utils/progress'
 import { BookwormError } from './errors'
+import { authService } from './auth.service'
+import { coverService } from './cover.service'
 
 export type StatusUpdateResult = {
   book: Book
@@ -29,10 +32,19 @@ export const bookService = {
 
   async create(input: CreateBookInput): Promise<Book> {
     const now = nowISO()
+    const id = generateId()
+    const userId = await authService.getUserId()
+    let cover_url = input.cover_url
+
+    if (userId && cover_url) {
+      cover_url = await coverService.resolveCoverUrl(cover_url, userId, id)
+    }
+
     const book: Book = {
-      id: generateId(),
+      id,
       current_progress: input.current_progress ?? 0,
       ...input,
+      cover_url,
       created_at: now,
       updated_at: now,
     }
@@ -45,9 +57,17 @@ export const bookService = {
     if (!existing) {
       throw new BookwormError('NOT_FOUND', 'Book not found')
     }
+
+    const userId = await authService.getUserId()
+    let cover_url = input.cover_url ?? existing.cover_url
+    if (userId && input.cover_url !== undefined) {
+      cover_url = await coverService.resolveCoverUrl(input.cover_url, userId, id)
+    }
+
     const updated: Book = {
       ...existing,
       ...input,
+      cover_url,
       updated_at: nowISO(),
     }
     await bookRepository.update(id, updated)
@@ -59,10 +79,15 @@ export const bookService = {
     if (!existing) {
       throw new BookwormError('NOT_FOUND', 'Book not found')
     }
-    await db.transaction('rw', db.books, db.readingLog, async () => {
+    if (isSupabaseEnabled()) {
       await readingLogRepository.deleteByBookId(id)
       await bookRepository.delete(id)
-    })
+    } else {
+      await db.transaction('rw', db.books, db.readingLog, async () => {
+        await readingLogRepository.deleteByBookId(id)
+        await bookRepository.delete(id)
+      })
+    }
   },
 
   async updateStatus(

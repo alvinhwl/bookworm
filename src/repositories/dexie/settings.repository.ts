@@ -1,10 +1,11 @@
 import type { UserSettings } from '@/types'
 import { DEFAULT_SETTINGS } from '@/types'
 import { db } from '@/db'
+import type { SettingsRepository } from '../types'
 
 const SETTINGS_ID = 'user' as const
 
-export const settingsRepository = {
+export const dexieSettingsRepository: SettingsRepository = {
   async get(): Promise<UserSettings> {
     const existing = await db.settings.get(SETTINGS_ID)
     if (existing) return existing

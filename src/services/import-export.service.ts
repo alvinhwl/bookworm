@@ -10,11 +10,20 @@ import type {
 import { EXPORT_SCHEMA_VERSION } from '@/types'
 import { bookRepository, readingLogRepository, settingsRepository } from '@/repositories'
 import { db } from '@/db'
+import { isSupabaseEnabled } from '@/lib/supabase'
 import { nowISO } from '@/utils/dates'
 import { exportBundleSchema } from '@/utils/validation'
 import { BookwormError } from './errors'
 function booksEqual(a: Book, b: Book): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
+}
+
+async function runImportTransaction(fn: () => Promise<void>): Promise<void> {
+  if (isSupabaseEnabled()) {
+    await fn()
+    return
+  }
+  await db.transaction('rw', db.books, db.readingLog, db.settings, fn)
 }
 
 export const importExportService = {
@@ -146,7 +155,7 @@ export const importExportService = {
     }
 
     if (mode === 'replace') {
-      await db.transaction('rw', db.books, db.readingLog, db.settings, async () => {
+      await runImportTransaction(async () => {
         await bookRepository.clear()
         await readingLogRepository.clear()
         await bookRepository.bulkPut(bundle.books)
@@ -167,7 +176,7 @@ export const importExportService = {
     let updated = 0
     const skipped = preview.unchanged
 
-    await db.transaction('rw', db.books, db.readingLog, db.settings, async () => {
+    await runImportTransaction(async () => {
       for (const book of preview.toAdd) {
         await bookRepository.create(book)
         added++

@@ -1,7 +1,10 @@
-import { NavLink, Outlet } from 'react-router-dom'
-import { BookOpen, Plus, Settings } from 'lucide-react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { BookOpen, LogOut, Plus, Settings } from 'lucide-react'
 import { BottomNav } from './BottomNav'
 import { ToastContainer } from '@/components/ui/Toast'
+import { MigrationPrompt } from '@/components/auth/MigrationPrompt'
+import { useAuth } from '@/context/AuthContext'
+import { Button } from '@/components/ui/Button'
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   `rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -11,6 +14,14 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   }`
 
 export function AppShell() {
+  const { enabled, user, signOut } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleSignOut() {
+    await signOut()
+    navigate('/login')
+  }
+
   return (
     <div className="min-h-screen bg-stone-50">
       <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/95 backdrop-blur">
@@ -37,6 +48,17 @@ export function AppShell() {
                 Settings
               </span>
             </NavLink>
+            {enabled && user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="text-stone-600"
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+            )}
           </nav>
         </div>
       </header>
@@ -46,6 +68,7 @@ export function AppShell() {
       </main>
 
       <BottomNav />
+      <MigrationPrompt />
       <ToastContainer />
     </div>
   )

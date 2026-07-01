@@ -1,5 +1,6 @@
 export interface ReadingLogEntry {
   id: string
+  user_id?: string
   book_id: string
   value: number
   note: string | null

@@ -1,7 +1,8 @@
 import type { Book, ReadingStatus } from '@/types'
 import { db } from '@/db'
+import type { BookRepository } from '../types'
 
-export const bookRepository = {
+export const dexieBookRepository: BookRepository = {
   async getAll(): Promise<Book[]> {
     return db.books.toArray()
   },

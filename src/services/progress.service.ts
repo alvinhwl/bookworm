@@ -1,6 +1,7 @@
 import type { Book, ReadingLogEntry } from '@/types'
 import { bookRepository, readingLogRepository } from '@/repositories'
 import { db } from '@/db'
+import { isSupabaseEnabled } from '@/lib/supabase'
 import { generateId } from '@/utils/id'
 import { nowISO } from '@/utils/dates'
 import { validateProgress } from '@/utils/progress'
@@ -40,10 +41,18 @@ export const progressService = {
       updated_at: nowISO(),
     }
 
-    await db.transaction('rw', db.books, db.readingLog, async () => {
-      await bookRepository.update(bookId, updatedBook)
+    if (isSupabaseEnabled()) {
+      await bookRepository.update(bookId, {
+        current_progress: updatedBook.current_progress,
+        updated_at: updatedBook.updated_at,
+      })
       await readingLogRepository.create(entry)
-    })
+    } else {
+      await db.transaction('rw', db.books, db.readingLog, async () => {
+        await bookRepository.update(bookId, updatedBook)
+        await readingLogRepository.create(entry)
+      })
+    }
 
     return { book: updatedBook, entry }
   },

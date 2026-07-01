@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { resetDb } from '@/db'
-import { bookRepository } from './book.repository'
+import { dexieBookRepository as bookRepository } from './dexie/book.repository'
 import { createBook } from '@/test/factories/book'
 
 let dbName: string

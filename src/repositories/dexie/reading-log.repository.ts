@@ -1,7 +1,8 @@
 import type { ReadingLogEntry } from '@/types'
 import { db } from '@/db'
+import type { ReadingLogRepository } from '../types'
 
-export const readingLogRepository = {
+export const dexieReadingLogRepository: ReadingLogRepository = {
   async getByBookId(bookId: string, limit?: number): Promise<ReadingLogEntry[]> {
     const entries = await db.readingLog.where('book_id').equals(bookId).toArray()
     entries.sort((a, b) => b.logged_at.localeCompare(a.logged_at))
